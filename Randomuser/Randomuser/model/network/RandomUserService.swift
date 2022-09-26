@@ -8,7 +8,7 @@
 import Foundation
 import CoreLocation
 
-class RandomUserService {
+final class RandomUserService {
     static let headers: [String: String] = ["Content-Type": "application/json", "Accept": "application/json"]
 
     var networkService: StandardNetworkService?
@@ -22,5 +22,4 @@ class RandomUserService {
         networkService = StandardNetworkService(path: "randomuser.me/api", queryItems: queryItems)
         networkService?.get(headers: RandomUserService.headers, completion: completion)
     }
-    
 }

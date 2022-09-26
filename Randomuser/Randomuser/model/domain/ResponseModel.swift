@@ -9,7 +9,7 @@ import Foundation
 
 struct ResponseModel: Decodable {
     var results: [UserModel] = []
-    var info: InfoModel?
+    var info: InfoModel
     
     enum CodingKeys: String, CodingKey {
         case results = "results"

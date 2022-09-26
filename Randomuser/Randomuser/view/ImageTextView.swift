@@ -66,12 +66,16 @@ final class ImageTextView: UIView {
         textLabel.frame = CGRect(x: textLabelXPosition, y: 0, width: holderView.frame.origin.x + holderView.frame.size.width - textLabelXPosition, height: holderView.frame.size.height)
     }
     
-    // MARK: Public setters
+    // MARK: Public
     func setImage(systemName: String) {
         imageView.image = UIImage(systemName: systemName)
     }
     
     func setText(text: String) {
         textLabel.text = text
+    }
+    
+    func isTextEmpty() -> Bool {
+        return textLabel.text?.isEmpty ?? true
     }
 }

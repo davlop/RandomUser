@@ -8,7 +8,7 @@
 import Foundation
 import UIKit
 
-class UserCell: UITableViewCell {
+final class UserCell: UITableViewCell {
     // MARK: Constants
     static let reuseId: String = "UserCell"
     
@@ -40,6 +40,7 @@ class UserCell: UITableViewCell {
         }
     }
     
+    // MARK: Public setters
     func setUserNames(firstNames: [String], lastNames: [String]) {
         if firstNames.count != lastNames.count {
             return

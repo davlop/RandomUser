@@ -8,7 +8,7 @@
 import Foundation
 import UIKit
 
-class UsersListViewController: UIViewController, UINavigationControllerDelegate {
+final class UsersListViewController: UIViewController, UINavigationControllerDelegate {
     
     // MARK: Data
     private let service = RandomUserService()
@@ -29,7 +29,12 @@ class UsersListViewController: UIViewController, UINavigationControllerDelegate 
         setupTitle()
         setUpTableView()
         setUpLoadingView()
+        addOptionsMenu()
         fetchRandomUsers()
+    }
+    
+    private func setupTitle() {
+        self.title = "RandomUser"
     }
     
     private func setUpLoadingView() {
@@ -49,12 +54,8 @@ class UsersListViewController: UIViewController, UINavigationControllerDelegate 
         loadingView.isHidden = true
     }
     
-    private func setupTitle() {
-        self.title = "RandomUser"
-    }
-    
     private func setUpTableView() {
-        usersTableView.frame = CGRect(x: 0, y: 0, width: view.frame.size.width, height: view.frame.size.height)
+        usersTableView.frame = CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
         usersTableView.separatorStyle = .none
         usersTableView.tableFooterView = UIView()
         usersTableView.allowsSelection = false
@@ -66,6 +67,50 @@ class UsersListViewController: UIViewController, UINavigationControllerDelegate 
         usersTableView.addGestureRecognizer(tapGestureRecognizer)
     }
     
+    private func addOptionsMenu() {
+        let saveSeedItem = UIAction(title: "Save Seed", image: UIImage(systemName: "arrow.down.to.line.compact"), handler: saveSeedHandler(action:))
+        let reuseSeedItem = UIAction(title: "Reuse Seed", image: UIImage(systemName: "arrow.counterclockwise.circle"), handler: reuseSeedHandler(action:))
+        let clearSeedItem = UIAction(title: "Clear Seed", image: UIImage(systemName: "trash"), handler: clearSavedSeedHandler(action:))
+        let menu = UIMenu(title: "Options", children: [saveSeedItem, reuseSeedItem, clearSeedItem])
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: nil, image: UIImage(systemName: "text.justify"), primaryAction: nil, menu: menu)
+    }
+    
+    private func saveSeedHandler(action: UIAction) -> Void {
+        if let resultsSeed = self.resultsSeed {
+            RandomUserDefaults.saveSeed(seed: resultsSeed)
+            let alert = UIAlertController(title: "Seed Saved", message: "", preferredStyle: UIAlertController.Style.alert)
+            alert.addAction(UIAlertAction(title: "OK", style: UIAlertAction.Style.default, handler: nil))
+            self.present(alert, animated: true, completion: nil)
+        }
+        let alert = UIAlertController(title: "Error", message: "Erro saving seed", preferredStyle: UIAlertController.Style.alert)
+        alert.addAction(UIAlertAction(title: "OK", style: UIAlertAction.Style.default, handler: nil))
+        self.present(alert, animated: true, completion: nil)
+    }
+    
+    private func reuseSeedHandler(action: UIAction) -> Void {
+        if !RandomUserDefaults.isSeedSaved() {
+            let alert = UIAlertController(title: "Error", message: "No seed saved", preferredStyle: UIAlertController.Style.alert)
+            alert.addAction(UIAlertAction(title: "OK", style: UIAlertAction.Style.default, handler: nil))
+            self.present(alert, animated: true, completion: nil)
+        } else if let savedSeed = RandomUserDefaults.retrieveSeed() {
+            self.users.removeAll()
+            self.lastPageFetched = 1
+            self.resultsSeed = savedSeed
+            fetchRandomUsers()
+        } else {
+            let alert = UIAlertController(title: "Error", message: "Error retrieving seed", preferredStyle: UIAlertController.Style.alert)
+            alert.addAction(UIAlertAction(title: "OK", style: UIAlertAction.Style.default, handler: nil))
+            self.present(alert, animated: true, completion: nil)
+        }
+    }
+    
+    private func clearSavedSeedHandler(action: UIAction) -> Void {
+        RandomUserDefaults.clearSeed()
+        let alert = UIAlertController(title: "Seed cleared", message: "", preferredStyle: UIAlertController.Style.alert)
+        alert.addAction(UIAlertAction(title: "OK", style: UIAlertAction.Style.default, handler: nil))
+        self.present(alert, animated: true, completion: nil)
+    }
+                                    
     // MARK: Fetch users
     private func fetchRandomUsers() {
         showLoadingView()
@@ -90,15 +135,21 @@ class UsersListViewController: UIViewController, UINavigationControllerDelegate 
         self.lastPageFetched += 1
         self.users.append(contentsOf: response.results)
         self.usersTableView.reloadData()
-        self.resultsSeed = response.info?.seed
+        self.resultsSeed = response.info.seed
     }
     
     private func handleServiceFailures(withError error: Error) {
-        // TODO improve - user is stuck in blank page after dismissing altert (add retry?)
         hideLoadingView()
         let alert = UIAlertController(title: "Error", message: error.localizedDescription, preferredStyle: UIAlertController.Style.alert)
-        alert.addAction(UIAlertAction(title: "OK", style: UIAlertAction.Style.default, handler: nil))
+        alert.addAction(UIAlertAction(title: "Retry", style: UIAlertAction.Style.destructive, handler: retryAfterError(action:)))
+        if self.lastPageFetched > 1 {
+            alert.addAction(UIAlertAction(title: "OK", style: UIAlertAction.Style.cancel, handler: nil))
+        }
         self.present(alert, animated: true, completion: nil)
+    }
+    
+    private func retryAfterError(action: UIAlertAction) {
+        fetchRandomUsers()
     }
     
     private func getUserFirstNames(at: IndexPath) -> [String] {
@@ -134,13 +185,22 @@ class UsersListViewController: UIViewController, UINavigationControllerDelegate 
     
     // MARK: Navigation
     private func navigateToUserDetails(user: UserModel) {
-        
+        if let detailsViewController: UserDetailsViewController = self.storyboard?.instantiateViewController(withIdentifier: "UserDetails") as? UserDetailsViewController {
+            detailsViewController.setUser(user)
+            self.navigationController?.pushViewController(detailsViewController, animated: true)
+        }
     }
     
     private func getUserFromCGPoint(_ point: CGPoint, cell: UserCell, indexPath: IndexPath) -> UserModel? {
-        return nil
+        var user: UserModel?
+        let widthOffset = cell.frame.size.width / CGFloat(numberOfCellsPerRow)
+        for index in 0...numberOfCellsPerRow {
+            if point.x > widthOffset * CGFloat(index) && point.x <= widthOffset * CGFloat(index + 1) {
+                user = users[safe: indexPath.row * numberOfCellsPerRow + index]
+            }
+        }
+        return user
     }
-    
 }
 
 // MARK: UITableView
